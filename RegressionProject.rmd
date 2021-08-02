@@ -1,11 +1,115 @@
 ---
-title: "RegressionProject"
+title: "Effect of Transmission on Miles Per Gallon"
 author: "Noah DiAntonio"
-date:
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+## Executive Summary
+In this analysis, I ask whether an automatic or manual transmission is better for MPG and quantify the MPG difference between automatic and manual transmissions. I find that there is a difference between automatic and manual transmission for MPG. In particular, I find that on aggregate, manual transmission is better for MPG. However, this does not tell the whole story. After fitting a model for MPG, I find that there is a downward trend for MPG as the weight of the car increases. This trend is different for automatic and manual transmission cars. Manual transmission cars have a steeper downward sloping curve, which means that around 2750 lbs, the MPG for manual transmission cars falls below that of automatic transmission cars. **The better transmission for MPG depends on the weight of the car. For lighter cars, manual transmission is better. For heavier cars, automatic transmission is better.**
+
+## Data Preparation and Exploratory Analysis
+
+I begin by opening the data and converting the am variable into a factor variable, labeling its levels "Automatic" and "Manual" respectively. I also load the package "ggplot2," which I will use later on.
+```{r}
+data(mtcars)
+data <- mtcars
+data$am <- factor(data$am)
+levels(data$am) <-c("Automatic", "Manual")
+library(ggplot2)
+```
+Next, I perform some basic exploratory analysis. You can see the analysis in **Appendix 2**.
+
+## Is an automatic or manual transmission better for MPG?
+The first question I want to answer is this: "Is an automatic or manual transmission better for MPG?" I begin by determining whether there is a difference in mpg between automatic and manual transmission using a t-test.
+```{r}
+t.test(mpg ~ am, data = data)$p.value
+```
+The p-value is less than 0.05 so I reject the null hypothesis that the mean mpg is the same for both automatic and manual transmission. **Appendix 1** contains a boxplot comparing mpg for both levels of am. Looking at it, it is clear that manual transmission has a higher mean for mpg than automatic transmission.
+
+**I conclude that a manual transmission is better for MPG than an automatic transmission.**
+
+## Quantifying the MPG difference between automatic and manual transmissions
+To quantify the MPG difference between automatic and manual transmissions, I need to select a linear model that predicts mpg using am and some number of relevant other variables. To select such a model, I create a set of models, with each one introducing one more variable. I then do an anova test on all of these models to determine whether adding each variable has a significant impact on the model. Those which do have a significant impact I will include in my initial model.
+
+**Appendix 3** contains the code used to run the anova test. The test finds that the variables cyl (number of cylinders), hp (horsepower), and wt (weight) have significant impacts on the fit. Thus, I fit my first model with am and these variables.
+```{r}
+fitnew <- lm(mpg ~ am + cyl + hp + wt, data)
+summary(fitnew)[4]
+```
+I notice that while some variables in this model are significant, am is not. This means that the model must be incomplete, because our earlier analysis made it evident that mpg *does* differ when am differs. That means I need to further improve the model.
+
+To improve the model further, I go through the same anova analysis, this time starting with our existing model and then adding interaction terms of am with the other variables. The code for this analysis can be found in **Appendix 4**. This analysis finds that the interaction between am and wt is significant, while other interactions are not. I thus refit the model adding the interaction term am:wt.
+```{r}
+fitint <- lm(mpg ~ am + cyl + hp + wt + am:wt, data)
+summary(fitint)[4]; summary(fitint)[8]
+```
+This model explains 88% of the variance in mpg. This model looks better, because I see that am changing from automatic to manual has an effect. I also notice that weight and the interaction of am and weight have significant effects.
+
+Before reporting on the meaning of these results, the residuals of our fit need to be analyzed. **Appendix 5** contains some summary plots for the residuals. Based on these plots, the residuals appear to be normally distributed and homoskedastic.
+
+**I conclude the following:**
+**1. Cars with manual transmissions get 11.3 more miles per gallon than cars with automatic transmissions.**
+**2. For every 1000 lbs a car with automatic transmission weighs, it gets 2.2 fewer miles per gallon.**
+**3. For every 1000 lbs a car with a manual transmission weighs, it gets 5.9 fewer miles per gallon.**
+
+This implies that while cars with manual transmissions initially have better miles per gallon, as weight increases their miles per gallon fall faster than cars with automatic transmissions. This implies that there is a weight point at which cars with automatic transmissions actually get better miles per gallon. **Appendix 6** shows this visually. It appears that at a weight of *approximately* 2750 lbs, automatic transmission cars begin to get better gas mileage.
+
+**In conclusion, the better transmission for MPG depends on the weight of the car. For lighter cars, manual transmission is better. For heavier cars, automatic transmission is better**
+
+\pagebreak
+
+## Appendices
+
+### Appendix 1: Exploratory Data Analysis
+```{r}
+str(data)
+```
+
+### Appendix 2: Boxplot
+```{r}
+boxplot(mpg ~ am, data = data, main = "MPG for Automatic and Manual Transmission",
+        ylab = "Miles Per Gallon", xlab = "Transmission Type", col = "light blue")
+```
+
+### Appendix 3: Model Selection, Part 1
+```{r}
+fit1 <- lm(mpg ~ am, data)
+fit2 <- lm(mpg ~ am + cyl, data)
+fit3 <- lm(mpg ~ am + cyl + disp, data)
+fit4 <- lm(mpg ~ am + cyl + disp + hp, data)
+fit5 <- lm(mpg ~ am + cyl + disp + hp + drat, data)
+fit6 <- lm(mpg ~ am + cyl + disp + hp + drat + wt, data)
+fit7 <- lm(mpg ~ am + cyl + disp + hp + drat + wt + qsec, data)
+fit8 <- lm(mpg ~ am + cyl + disp + hp + drat + wt + qsec + vs, data)
+fit9 <- lm(mpg ~ am + cyl + disp + hp + drat + wt + qsec + vs + gear, data)
+fit10 <- lm(mpg ~ am + cyl + disp + hp + drat + wt + qsec + vs + gear + carb, data)
+anova(fit1, fit2, fit3, fit4, fit5, fit6, fit7, fit8, fit9, fit10)
+```
+
+### Appendix 4: Model Selection, Part 2
+```{r}
+fit11 <- lm(mpg ~ am + cyl + hp + wt, data)
+fit12 <- lm(mpg ~ am + cyl + hp + wt + am:cyl, data)
+fit13 <- lm(mpg ~ am + cyl + hp + wt + am:cyl + am:hp, data)
+fit14 <- lm(mpg ~ am + cyl + hp + wt + am:cyl + am:hp + am:wt, data)
+anova(fit11, fit12, fit13, fit14)
+```
+
+### Appendix 5: Residual Plots
+```{r}
+par(mfrow = c(2,2))
+plot(fitint)
+```
+
+### Appendix 6: Different MPG ~ Weight Slopes For Different Transmissions 
+```{r}
+qplot(x = data$wt, y = data$mpg, col = data$am, geom = c("point", "smooth"), method = "lm",
+      main = "Effect of Weight on MPG for Automatic and Manual Transmission Cars",
+      xlab = "Weight (1000 lbs)", ylab = "Miles Per Gallon")
+```
